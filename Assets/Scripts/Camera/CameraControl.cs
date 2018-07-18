@@ -30,11 +30,16 @@ namespace RVP
         Vector3 upLook;
         Vector3 targetForward;
         Vector3 targetUp;
+
         [Tooltip("Should the camera stay flat? (Local y-axis always points up)")]
         public bool stayFlat;
 
+        [Tooltip("Should the camera view Horizon?")]
+        public bool Horizon;
+
         [Tooltip("Mask for which objects will be checked in between the camera and target vehicle")]
         public LayerMask castMask;
+
 
         void Start()
         {
@@ -98,8 +103,14 @@ namespace RVP
                 lookObj.position = target.position;
                 Vector3 lookDirActual = (lookDir - new Vector3(Mathf.Sin(smoothYRot), 0, Mathf.Cos(smoothYRot)) * Mathf.Abs(smoothYRot) * 0.2f).normalized;
                 Vector3 forwardDir = lookObj.TransformDirection(lookDirActual);
-                Vector3 localOffset = lookObj.TransformPoint(-lookDirActual * distance - lookDirActual * Mathf.Min(targetBody.velocity.magnitude * 0.05f, 2) + new Vector3(0, height, 0));
-
+                Vector3 dotDir = Vector3.Cross(lookDirActual, upLook);
+                
+                Vector3 localOffset = Vector3.zero;
+                if(Horizon)
+                    localOffset = lookObj.TransformPoint(dotDir * distance + dotDir * Mathf.Min(targetBody.velocity.magnitude * 0.05f, 2) + new Vector3(0, height, 0));
+                else
+                    localOffset = lookObj.TransformPoint(-lookDirActual * distance - lookDirActual * Mathf.Min(targetBody.velocity.magnitude * 0.05f, 2) + new Vector3(0, height, 0)); // Ori
+                
                 //Check if there is an object between the camera and target vehicle and move the camera in front of it
                 if (Physics.Linecast(target.position, localOffset, out hit, castMask))
                 {
@@ -110,7 +121,13 @@ namespace RVP
                     tr.position = localOffset;
                 }
 
-                tr.rotation = Quaternion.LookRotation(forwardDir, lookObj.up);
+                if (Horizon)
+                {
+                    Vector3 camDir = Vector3.Cross(forwardDir, lookObj.up);
+                    tr.rotation = Quaternion.LookRotation(-camDir, lookObj.up);
+                }
+                else
+                    tr.rotation = Quaternion.LookRotation(forwardDir, lookObj.up);
             }
         }
 
